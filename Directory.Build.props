@@ -8,6 +8,7 @@
     <Version>8.1.2</Version>
     <AssemblyVersion>$(Version).0</AssemblyVersion>
     <FileVersion>$(Version).0</FileVersion>
+    <PackageVersion>$(Version)-npgsqlJson</PackageVersion>
     <PackageIcon>EFCoreBulk.png</PackageIcon>
     <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
 	<PackageReleaseNotes>several updates</PackageReleaseNotes>

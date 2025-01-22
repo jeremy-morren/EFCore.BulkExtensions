@@ -297,7 +297,7 @@ public class TableInfo
         AllNavigationsDictionary = navigations.ToDictionary(nav => nav.Name, nav => nav);
 
         OwnedTypesDict = navigations.Where(a => a.TargetEntityType.IsOwned()).ToDictionary(a => a.Name, a => a);
-        HasOwnedTypes = OwnedTypesDict.Count() > 0;
+        HasOwnedTypes = OwnedTypesDict.Count > 0;
 
 #if NET7_0_OR_GREATER
         OwnedRegularTypesDict = navigations.Where(a => a.TargetEntityType.IsOwned() && !a.TargetEntityType.IsMappedToJson()).ToDictionary(a => a.Name, a => a);
@@ -307,7 +307,7 @@ public class TableInfo
         OwnedJsonTypesDict = navigations.Where(a => a.TargetEntityType == null).ToDictionary(a => a.Name, a => a); // should be empty
 #endif
 
-        HasJsonTypes = OwnedJsonTypesDict.Count() > 0;
+        HasJsonTypes = OwnedJsonTypesDict.Count > 0;
 
         if (isSqlServer || isNpgsql || isMySql)
         {
@@ -586,7 +586,7 @@ public class TableInfo
                         prefix += $"{property.Name}_";
 
                         var ownedList = context.Model.FindEntityTypes(property.PropertyType).Where(x => x.IsInOwnershipPath(entityType)).ToList();
-                        var ownedEntityType = ownedList.Count() == 1
+                        var ownedEntityType = ownedList.Count == 1
                              ? ownedList[0] // IsInOwnershipPath fix for with multiple parents (issue #1149)
                              : context.Model.GetEntityTypes().SingleOrDefault(x => x.ClrType == property.PropertyType && x.Name.StartsWith(entityType.Name + "." + property.Name + "#"));
                                // fix when entity has more then one ownedType (e.g. Address HomeAddress, Address WorkAddress) or one ownedType is in multiple Entities like Audit is usually.
@@ -608,7 +608,7 @@ public class TableInfo
                                 }
                             }
 
-                            var converter = ownedEntityProperty.GetValueConverter();
+                            var converter = ownedEntityProperty.GetValueConverter() ?? ownedEntityProperty.GetTypeMapping().Converter;
                             if (converter != null)
                             {
                                 ConvertibleColumnConverterDict.Add($"{prefix}{ownedEntityProperty.Name}", converter);
@@ -946,7 +946,7 @@ public class TableInfo
 
             existingEntitiesDict.TryGetValue(uniqueProperyValues, out T? existingEntity);
             bool isPostgreSql = context.Database.ProviderName?.EndsWith(SqlType.PostgreSql.ToString(), StringComparison.InvariantCultureIgnoreCase) ?? false;
-            if (existingEntity == null && isPostgreSql && i < existingEntities.Count() && entities.Count() == existingEntities.Count()) // && entities.Count == existingEntities.Count conf fix for READ. TODO change (issue 1027)
+            if (existingEntity == null && isPostgreSql && i < existingEntities.Count && entities.Count() == existingEntities.Count) // && entities.Count == existingEntities.Count conf fix for READ. TODO change (issue 1027)
             {
                 existingEntity = existingEntities.ElementAt(i); // TODO check if BinaryImport with COPY on Postgres preserves order
             }

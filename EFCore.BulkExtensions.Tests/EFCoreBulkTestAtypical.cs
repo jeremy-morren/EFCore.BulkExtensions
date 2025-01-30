@@ -549,7 +549,7 @@ public class EFCoreBulkTestAtypical
     [InlineData(SqlType.SqlServer)]
     [InlineData(SqlType.Sqlite)]
     [InlineData(SqlType.PostgreSql)]
-    private void OwnedTypesTest(SqlType sqlType)
+    public void OwnedTypesTest(SqlType sqlType)
     {
         ContextUtil.DatabaseType = sqlType;
         using var context = new TestContext(ContextUtil.GetOptions());
@@ -592,10 +592,27 @@ public class EFCoreBulkTestAtypical
                     CreatedBy = "UserS" + 1,
                     Remark = "sec",
                     CreatedTime = DateTime.Now
+                },
+                Source = new ChangeLogSource()
+                {
+                    Source1 = new AuditExtended()
+                    {
+                        CreatedBy = $"UserA{i}"
+                    },
+                    Source2 = new AuditExtended()
+                    {
+                        CreatedBy = $"UserB{i}"
+                    }
                 }
             });
         }
         context.BulkInsert(entities);
+        
+        Assert.All(context.Set<ChangeLog>().ToList(), entity =>
+        {
+            Assert.NotNull(entity.Source.Source1.CreatedBy);
+            Assert.NotNull(entity.Source.Source2.CreatedBy);
+        });
 
         if (sqlType == SqlType.SqlServer || sqlType == SqlType.PostgreSql)
         {

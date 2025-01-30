@@ -104,6 +104,7 @@ public class TestContext : DbContext
 
     public TestContext(DbContextOptions options) : base(options)
     {
+        Database.EnsureDeleted();
         Database.EnsureCreated();
         // if for Postgres on test run get Npgsql Ex:[could not open .../postgis.control] then either install the plugin it or set UseTopologyPostgres to False;
 
@@ -914,6 +915,18 @@ public class ChangeLog
     public AuditExtended AuditExtended { get; set; } = null!;
 
     public AuditExtended AuditExtendedSecond { get; set; } = null!;
+    
+    // Nested Owned type
+    public ChangeLogSource Source { get; set; } = null!;
+}
+
+[Owned]
+public class ChangeLogSource
+{
+    // 2 Owned types in nested Owned type
+    
+    public AuditExtended Source1 { get; set; } = null!;
+    public AuditExtended Source2 { get; set; } = null!;
 }
 
 [Owned]

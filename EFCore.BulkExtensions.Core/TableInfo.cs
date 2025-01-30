@@ -66,8 +66,20 @@ public class TableInfo
     public Dictionary<string, FastProperty> FastPropertyDict { get; set; } = new();
     public Dictionary<string, INavigation> AllNavigationsDictionary { get; private set; } = null!;
     public Dictionary<string, INavigation> OwnedTypesDict { get; set; } = new();
+    
+    /// <summary>
+    /// Dictionary of owned type column names and a function to get the value of the owned type property from the entity
+    /// </summary>
+    public Dictionary<string, Func<object?, object?>> GetOwnedTypePropertyValueDict { get; set; } = new();
 
+    /// <summary>
+    /// Dictionary of owned types to the respective navigation property. Excludes owned types that are serialized as JSON
+    /// </summary>
     public Dictionary<string, INavigation> OwnedRegularTypesDict { get; set; } = new();
+    
+    /// <summary>
+    /// Dictionary of owned types that are serialized as JSON.
+    /// </summary>
     public Dictionary<string, INavigation> OwnedJsonTypesDict { get; set; } = new();
     public HashSet<string> ShadowProperties { get; set; } = new HashSet<string>();
     public HashSet<string> DefaultValueProperties { get; set; } = new HashSet<string>();
@@ -585,13 +597,8 @@ public class TableInfo
 
                         prefix += $"{property.Name}_";
 
-                        var ownedList = context.Model.FindEntityTypes(property.PropertyType).Where(x => x.IsInOwnershipPath(entityType)).ToList();
-                        var ownedEntityType = ownedList.Count == 1
-                             ? ownedList[0] // IsInOwnershipPath fix for with multiple parents (issue #1149)
-                             : context.Model.GetEntityTypes().SingleOrDefault(x => x.ClrType == property.PropertyType && x.Name.StartsWith(entityType.Name + "." + property.Name + "#"));
-                               // fix when entity has more then one ownedType (e.g. Address HomeAddress, Address WorkAddress) or one ownedType is in multiple Entities like Audit is usually.
-
-                        var ownedEntityProperties = ownedEntityType?.GetProperties().ToList() ?? [];
+                        var ownedEntityType = navigationProperty.ForeignKey.DeclaringEntityType;
+                        var ownedEntityProperties = ownedEntityType.GetProperties().ToList() ?? [];
                         var ownedEntityPropertyNameColumnNameDict = new Dictionary<string, string>();
 
                         foreach (var ownedEntityProperty in ownedEntityProperties)
@@ -621,13 +628,8 @@ public class TableInfo
                             if (ownedEntityPropertyNameColumnNameDict.TryGetValue(ownedProperty.Name, out string? columnName))
                             {
                                 string ownedPropertyFullName = prefix.Replace('_', '.') + ownedProperty.Name;
-                                var ownedPropertyType = Nullable.GetUnderlyingType(ownedProperty.PropertyType) ?? ownedProperty.PropertyType;
-
-                                bool doAddProperty = true;
-                                if (AreSpecifiedPropertiesToInclude && !(BulkConfig.PropertiesToInclude?.Contains(ownedPropertyFullName) ?? false))
-                                {
-                                    doAddProperty = false;
-                                }
+                                bool doAddProperty = !(AreSpecifiedPropertiesToInclude && !(BulkConfig.PropertiesToInclude?.Contains(ownedPropertyFullName) ?? false));
+                                
                                 if (AreSpecifiedPropertiesToExclude && (BulkConfig.PropertiesToExclude?.Contains(ownedPropertyFullName) ?? false))
                                 {
                                     doAddProperty = false;
@@ -639,15 +641,13 @@ public class TableInfo
                                     PropertyColumnNamesCompareDict.Add(ownedPropertyFullName, columnName);
                                     PropertyColumnNamesUpdateDict.Add(ownedPropertyFullName, columnName);
                                     OutputPropertyColumnNamesDict.Add(ownedPropertyFullName, columnName);
+                                    GetOwnedTypePropertyValueDict.Add(ownedPropertyFullName,
+                                        CreateGetOwnedTypePropertyValue(ownedPropertyFullName));
                                 }
                             }
                         }
-                        IEnumerable<INavigation>? ownedTypes;
-#if NET6_0
-                        ownedTypes = ownedEntityType?.GetNavigations().Where(a => a.TargetEntityType.IsOwned() && !a.TargetEntityType.IsMappedToJson());
-#else
-                        ownedTypes = ownedEntityType?.GetNavigations().Where(a => a.TargetEntityType.IsOwned() && !a.TargetEntityType.IsMappedToJson());
-#endif
+                        var ownedTypes = ownedEntityType.GetNavigations().Where(a => a.TargetEntityType.IsOwned() && !a.TargetEntityType.IsMappedToJson());
+                        
                         foreach (var ownedNavigationProperty in ownedTypes ?? [])
                         {
                             AddOwnedType(ownedNavigationProperty, prefix);
@@ -1464,6 +1464,19 @@ public class TableInfo
         return orderedQuery;
     }*/
     #endregion
+
+    /// <summary>
+    /// Creates a function to get the value of an owned type property from the root entity
+    /// </summary>
+    private Func<object?, object?> CreateGetOwnedTypePropertyValue(string propertyName)
+    {
+        // Get list of property names in the object graph
+        var paths = propertyName.Split('.');
+        paths = paths.Select((_, i) => string.Join('_', paths.Take(i + 1))).ToArray();
+        
+        // Return a function that navigates the object graph to get the value of the property
+        return entity => paths.Aggregate(entity, (current, name) => FastPropertyDict[name].Get(current));
+    }
 }
 
 internal class PrimaryKeysPropertyColumnNameValues

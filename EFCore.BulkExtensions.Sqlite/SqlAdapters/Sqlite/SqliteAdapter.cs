@@ -428,12 +428,9 @@ public class SqliteAdapter : ISqlOperationsAdapter
             object? value = null;
             if (!isShadowProperty)
             {
-                if (propertyColumn.Key.Contains('.')) // ToDo: change IF clause to check for NavigationProperties, optimise, integrate with same code segment from LoadData method
+                if (tableInfo.GetOwnedTypePropertyValueDict.TryGetValue(propertyColumn.Key, out var getOwnedTypePropertyValue)) // ToDo: change IF clause to check for NavigationProperties, optimise, integrate with same code segment from LoadData method
                 {
-                    var ownedPropertyNameList = propertyColumn.Key.Split('.');
-                    var ownedPropertyName = ownedPropertyNameList[0];
-                    var subPropertyName = ownedPropertyNameList[1];
-                    var ownedFastProperty = tableInfo.FastPropertyDict[ownedPropertyName];
+                    var ownedFastProperty = tableInfo.FastPropertyDict[parameterName];
                     var ownedProperty = ownedFastProperty.Property;
 
                     var propertyType = Nullable.GetUnderlyingType(ownedProperty.GetType()) ?? ownedProperty.GetType();
@@ -442,17 +439,8 @@ public class SqliteAdapter : ISqlOperationsAdapter
                         var parameter = new SqliteParameter($"@{parameterName}", propertyType);
                         command.Parameters.Add(parameter);
                     }
-
-                    if (ownedProperty == null)
-                    {
-                        value = null;
-                    }
-                    else
-                    {
-                        var ownedPropertyValue = entity == null ? null : tableInfo.FastPropertyDict[ownedPropertyName].Get(entity);
-                        var subPropertyFullName = $"{ownedPropertyName}_{subPropertyName}";
-                        value = ownedPropertyValue == null ? null : tableInfo.FastPropertyDict[subPropertyFullName]?.Get(ownedPropertyValue);
-                    }
+                    
+                    value = getOwnedTypePropertyValue(entity);
                 }
                 else if (tableInfo.FastPropertyDict.ContainsKey(propertyColumn.Key))
                 {

@@ -90,7 +90,7 @@ public class FastProperty
     /// </summary>
     /// <param name="instance"></param>
     /// <returns></returns>
-    public object? Get(object instance) => instance == default || _getDelegate is null ? default : _getDelegate(instance);
+    public object? Get(object? instance) => instance == default || _getDelegate is null ? default : _getDelegate(instance);
 
     /// <summary>
     /// Sets the delegate

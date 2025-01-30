@@ -184,53 +184,30 @@ public class PostgreSqlAdapter : ISqlOperationsAdapter
 
     static object? GetPropertyValue<T>(DbContext context, TableInfo tableInfo, string propertyName, T entity)
     {
-        if (!tableInfo.FastPropertyDict.ContainsKey(propertyName.Replace('.', '_')) || entity is null)
+        if (entity != null)
         {
-            var propertyValueInner = default(object);
-            var objectIdentifier = tableInfo.ObjectIdentifier;
-            var shadowPropertyColumnNamesDict = tableInfo.ColumnToPropertyDictionary
-                .Where(a => a.Value.IsShadowProperty()).ToDictionary(a => a.Value.Name, a => a.Value.GetColumnName(objectIdentifier));
-            if (shadowPropertyColumnNamesDict.ContainsKey(propertyName))
+            if (tableInfo.GetOwnedTypePropertyValueDict.TryGetValue(propertyName, out var getOwnedTypePropertyValue))
             {
-                if (tableInfo.BulkConfig.ShadowPropertyValue == null)
-                {
-                    propertyValueInner = context.Entry(entity!).Property(propertyName).CurrentValue;
-                }
-                else
-                {
-                    propertyValueInner = tableInfo.BulkConfig.ShadowPropertyValue(entity!, propertyName);
-                }
-
-                if (tableInfo.ConvertibleColumnConverterDict.ContainsKey(propertyName))
-                {
-                    propertyValueInner = tableInfo.ConvertibleColumnConverterDict[propertyName].ConvertToProvider.Invoke(propertyValueInner);
-                }
-                return propertyValueInner;
+                return getOwnedTypePropertyValue(entity);
             }
-            return null;
+            if (tableInfo.FastPropertyDict.TryGetValue(propertyName.Replace('.', '_'), out var property))
+            {
+                return property.Get(entity);
+            }
         }
+        
+        if (!tableInfo.ColumnToPropertyDictionary.Values.Any(p => p.IsShadowProperty() && p.Name != propertyName))
+            return null; // Shadow property not found, can't set value
+        
+        var propertyValueInner = tableInfo.BulkConfig.ShadowPropertyValue == null
+            ? context.Entry(entity!).Property(propertyName).CurrentValue 
+            : tableInfo.BulkConfig.ShadowPropertyValue(entity!, propertyName);
 
-        object? propertyValue = entity;
-        string fullPropertyName = string.Empty;
-        foreach (var entry in propertyName.AsSpan().Split("."))
+        if (tableInfo.ConvertibleColumnConverterDict.TryGetValue(propertyName, out var converter))
         {
-            if (propertyValue == null)
-            {
-                return null;
-            }
-
-            if (fullPropertyName.Length > 0)
-            {
-                fullPropertyName += $"_{entry.Token}";
-            }
-            else
-            {
-                fullPropertyName = new string(entry.Token);
-            }
-
-            propertyValue = tableInfo.FastPropertyDict[fullPropertyName].Get(propertyValue);
+            propertyValueInner = converter.ConvertToProvider.Invoke(propertyValueInner);
         }
-        return propertyValue;
+        return propertyValueInner;
     }
 
     /// <inheritdoc/>

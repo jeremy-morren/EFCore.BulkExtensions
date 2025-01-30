@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Text.Json;
+using System.Threading;
 using Xunit;
 
 namespace EFCore.BulkExtensions.Tests;
@@ -27,7 +28,7 @@ public class EFCoreBulkTest
         using var context = new TestContext(sqlType);
         context.Database.ExecuteSqlRaw($@"DELETE FROM ""{nameof(Wall)}""");
         context.Database.ExecuteSqlRaw($@"DELETE FROM ""{nameof(TimeRecord)}""");
-
+        
         var walls = new List<Wall>();
         for (int i = 1; i <= 10; i++)
         {
@@ -48,17 +49,20 @@ public class EFCoreBulkTest
          
         Assert.True(addedWall.WallTypeValue == walls[0].WallTypeValue);
 
-
         var timeRecord = new TimeRecord()
         {
             Source = new TimeRecordSource
             {
                 Name = "Abcd",
                 Type = TimeRecordSourceType.Operator // for PG required Converter explicitly configured in OnModelCreating
-            },
+            }
         };
 
         context.BulkInsert(new List<TimeRecord> { timeRecord });
+
+        var inserted = Assert.Single(context.Set<TimeRecord>());
+        inserted.TimeRecordId = timeRecord.TimeRecordId; // to match with expected
+        Assert.Equivalent(timeRecord, inserted);
     }
 
     [Theory]

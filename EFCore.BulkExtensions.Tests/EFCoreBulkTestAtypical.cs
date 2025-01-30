@@ -560,6 +560,8 @@ public class EFCoreBulkTestAtypical
         {
             entities.Add(new ChangeLog
             {
+                ChangeLogId = i, // Ensure stable id for comparison below
+                
                 Description = "Dsc " + i,
                 Audit = new Audit
                 {
@@ -578,11 +580,22 @@ public class EFCoreBulkTestAtypical
                     CreatedBy = "UserS" + 1,
                     Remark = "sec",
                     CreatedTime = DateTime.Now
+                },
+                Source = new ChangeLogSource()
+                {
+                    Source1 = new AuditExtended()
+                    {
+                        CreatedBy = $"UserA{i}"
+                    },
+                    Source2 = new AuditExtended()
+                    {
+                        CreatedBy = $"UserB{i}"
+                    }
                 }
             });
         }
         context.BulkInsert(entities);
-
+        
         if (sqlType == SqlType.SqlServer || sqlType == SqlType.PostgreSql)
         {
             context.BulkRead(

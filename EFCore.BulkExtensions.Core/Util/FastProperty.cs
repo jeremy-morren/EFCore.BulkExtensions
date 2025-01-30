@@ -81,16 +81,17 @@ public class FastProperty
             _getDelegate = Expression.Lambda<Func<object, object>>(Expression.TypeAs(Expression.Call(instanceCast, getter), typeof(object)), instance).Compile();
     }
 
-#pragma warning disable CS1591 // No XML comment required here
-    public PropertyInfo Property { get; set; }
-
+    /// <summary>
+    /// The property info
+    /// </summary>
+    public PropertyInfo Property { get; }
 
     /// <summary>
     /// Returns the object
     /// </summary>
     /// <param name="instance"></param>
     /// <returns></returns>
-    public object? Get(object instance) => instance == default || _getDelegate is null ? default : _getDelegate(instance);
+    public object? Get(object? instance) => instance == default || _getDelegate is null ? default : _getDelegate(instance);
 
     /// <summary>
     /// Sets the delegate

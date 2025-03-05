@@ -45,7 +45,7 @@ public class PostgreSqlQueryBuilder : SqlQueryBuilder
     public static string CreateTableCopy(string existingTableName, string newTableName, bool useTempDb, bool unlogged)
     {
         string keywordPrefix = "";
-        if (unlogged == true)
+        if (useTempDb)
         {
             keywordPrefix = "TEMP "; // "TEMP " or "TEMPORARY "
         }
